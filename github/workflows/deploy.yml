@@ -1,0 +1,58 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]   # main에 푸시될 때 자동 배포
+  workflow_dispatch:      # 수동 실행 버튼도 활성화
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build  # Vite는 dist/에 산출
+
+      # (선택) SPA 새로고침 404 방지: 404.html = index.html
+      - name: Add SPA fallback (optional)
+        run: cp dist/index.html dist/404.html
+
+      # (선택) 커스텀 도메인 쓰면 CNAME 넣기
+      # - name: Add CNAME (optional)
+      #   run: echo "example.com" > dist/CNAME
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
